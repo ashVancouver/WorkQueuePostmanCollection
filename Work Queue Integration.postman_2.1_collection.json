@@ -1,0 +1,1261 @@
+{
+	"info": {
+		"_postman_id": "c26974f7-caca-4f1b-8e48-74339f275606",
+		"name": "Work Queue Integration",
+		"description": "This collection provides a set of pre-built API requests for interacting with work queues in Dataverse. With these requests, you can easily create, update, and delete work queues, as well as add and process items from them.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "2088488"
+	},
+	"item": [
+		{
+			"name": "Create Work Queue",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Set Work Queue Id\", function () {\r",
+							"    var jsonData = pm.response.json();\r",
+							"    pm.collectionVariables.set('newWorkQueueId', jsonData.workqueueid);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "OData-MaxVersion",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "OData-Version",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json; charset=utf-8",
+						"type": "text"
+					},
+					{
+						"key": "Prefer",
+						"value": "return=representation",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"workqueuetype\": 0,\r\n    \"name\": \"AAA My Work Queue Test\",\r\n    \"description\": \"AAA My queue with a 14 day SLA.\",\r\n    \"workqueuekey\": \"AAA My Work Queue Test\",\r\n    \"prioritytype\": 0,\r\n    \"defaultitemtimetoliveinminutes\": 20160\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{webapiurl}}workqueues",
+					"host": [
+						"{{webapiurl}}workqueues"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Work Queue Item",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Set New Work Queue Item Id\", function () {\r",
+							"    var jsonData = pm.response.json();\r",
+							"    pm.collectionVariables.set('newWorkQueueItemId', jsonData.workqueueitemid);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "OData-MaxVersion",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "OData-Version",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json; charset=utf-8",
+						"type": "text"
+					},
+					{
+						"key": "Prefer",
+						"value": "return=representation",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"workqueueid@odata.bind\": \"/workqueues({{newWorkQueueId}})\",\r\n    \"name\": \"I-9999\",\r\n    \"input\": '{\r\n        \"InvoiceId\": \"I-1051\",\r\n        \"Date\": \"2023-05-13\",\r\n        \"AccountName\": \"Fabrikam\",\r\n        \"ContactEmail\": \"invoicing@fabrikam.com\",\r\n        \"Amount\": 3345.87,\r\n        \"Status\": \"Uninvoiced\",\r\n        \"ComponentState\": 0,\r\n        \"OverwriteTime\": \"1900-01-01\",\r\n        \"WorkQueueKey\": \"Vendor Invoices\"\r\n    }',\r\n    \"priority\": 100\r\n}",
+					"options": {
+						"raw": {
+							"language": "text"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{webapiurl}}workqueueitems",
+					"host": [
+						"{{webapiurl}}workqueueitems"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Bulk Work Queue Items (Dynamically)",
+			"event": [
+				{
+					"listen": "prerequest",
+					"script": {
+						"exec": [
+							"/*\r",
+							"\r",
+							"This JavaScript script generates a batch of work queue items (WQIs) for a fictitious invoicing system. \r",
+							"\r",
+							"1. The script generates a specified number of work queue items for an invoicing system.\r",
+							"2. Creates unique invoice IDs and dates for each work queue item.\r",
+							"3. Sets up a list of account names and maps them to their corresponding domain names.\r",
+							"4. Generates contact emails for each account using the domain map.\r",
+							"5. Generates random invoice amounts for each work queue item.\r",
+							"6. Defines possible statuses for the invoices.\r",
+							"7. Creates each WQI by selecting random account names, contact emails, amounts, and statuses.\r",
+							"8. Creates a batch request body with the array of work queue items and sets it as the value for the \"payload\" variable in the request body.\r",
+							"\r",
+							"*/\r",
+							"\r",
+							"// Define the number of workqueueitems you want to create\r",
+							"const numWQI = 100;\r",
+							"\r",
+							"const workqueueitems = [];\r",
+							"\r",
+							"// Possible priorities (High,Normal,Low)\r",
+							"const priorities = [100, 200, 300];\r",
+							"\r",
+							"// Generate unique invoice IDs\r",
+							"const invoiceIds = Array.from({ length: numWQI }, (_, i) => {\r",
+							"    const now = new Date();\r",
+							"    const year = now.getFullYear().toString().slice(-2);\r",
+							"    const month = (now.getMonth() + 1).toString().padStart(2, '0');\r",
+							"    const day = now.getDate().toString().padStart(2, '0');\r",
+							"    const counter = (i + 1).toString().padStart(8, '0');\r",
+							"    return `INV-${year}${month}${day}${counter}`.slice(0, 13);\r",
+							"});\r",
+							"\r",
+							"// Random invoice dates\r",
+							"const dates = Array.from({ length: numWQI }, (_, i) => {\r",
+							"    const date = new Date();\r",
+							"    date.setDate(date.getDate() + i);\r",
+							"    return date.toISOString().split('T')[0];\r",
+							"});\r",
+							"\r",
+							"// Fake account names\r",
+							"const accountNames = ['Fabrikam', 'Contoso', 'AdventureWorks'];\r",
+							"\r",
+							"// Object to map account names to domains\r",
+							"const domainMap = {\r",
+							"    'Fabrikam': 'fabrikam.com',\r",
+							"    'Contoso': 'contoso.com',\r",
+							"    'AdventureWorks': 'adventureworks.com'\r",
+							"};\r",
+							"\r",
+							"// Fake contact emails\r",
+							"const contactEmails = accountNames.map(name => `invoicing@${domainMap[name]}`);\r",
+							"\r",
+							"// Fake amounts\r",
+							"const amounts = Array.from({ length: numWQI }, () => Math.floor(Math.random() * 10000) + 1000);\r",
+							"\r",
+							"// Possible statuses\r",
+							"const statuses = ['Uninvoiced', 'Invoiced', 'Paid'];\r",
+							"\r",
+							"// Optional: Add 1 day to the current date as expiry if there is no default TTL specified\r",
+							"// const now = new Date();\r",
+							"// const oneDayLater = new Date(now);\r",
+							"// oneDayLater.setDate(oneDayLater.getDate() + 1);\r",
+							"\r",
+							"// Create workqueueitems\r",
+							"for (let i = 0; i < numWQI; i++) {\r",
+							"    const invoiceId = invoiceIds[i];\r",
+							"    const date = dates[i];\r",
+							"    const accountIndex = Math.floor(Math.random() * accountNames.length);\r",
+							"    const accountName = accountNames[accountIndex];\r",
+							"    const contactEmail = contactEmails[accountIndex];\r",
+							"    const amount = amounts[i];\r",
+							"    const status = statuses[Math.floor(Math.random() * statuses.length)];\r",
+							"\r",
+							"    // Create input object dynamically\r",
+							"    const input = {\r",
+							"        InvoiceId: invoiceId,\r",
+							"        Date: date,\r",
+							"        AccountName: accountName,\r",
+							"        ContactEmail: contactEmail,\r",
+							"        Amount: amount,\r",
+							"        Status: status,\r",
+							"    };\r",
+							"\r",
+							"    // Create workqueueitem object dynamically\r",
+							"    const workqueueitem = {\r",
+							"        \"workqueueid@odata.bind\": `/workqueues(${pm.collectionVariables.get('newWorkQueueId')})`,\r",
+							"        \"name\": invoiceId,\r",
+							"        \"priority\": priorities[Math.floor(Math.random() * priorities.length)],\r",
+							"        \"input\": JSON.stringify(input)\r",
+							"        //Uncomment if you want to set specific expiry dates\r",
+							"        //,expirydate\": oneDayLater.toISOString()\r",
+							"    };\r",
+							"\r",
+							"    // Push the workqueueitem object to the workqueueitem array\r",
+							"    workqueueitems.push(workqueueitem);\r",
+							"}\r",
+							"\r",
+							"// Create the batch request body\r",
+							"const boundary = `batch_${Date.now()}`;\r",
+							"\r",
+							"const requestBody = workqueueitems.map((workqueueitem, i) => {\r",
+							"    const changesetId = `changeset_${i}`;\r",
+							"    return `--${boundary}\r",
+							"Content-Type: application/http\r",
+							"Content-Transfer-Encoding: binary\r",
+							"\r",
+							"POST /api/data/v9.2/workqueueitems HTTP/1.1\r",
+							"Content-Type: application/json;type=entry\r",
+							"\r",
+							"${JSON.stringify(workqueueitem)}\r",
+							"\r",
+							"`;\r",
+							"});\r",
+							"\r",
+							"// Add the closing boundary\r",
+							"requestBody.push(`--${boundary}--\\r\\n`);\r",
+							"\r",
+							"// Set the batch request body as the value for the \"payload\" variable in the request body\r",
+							"pm.variables.set('payload', requestBody.join('\\r\\n'));\r",
+							"pm.request.headers.add({ key: \"Content-Type\", value: `multipart/mixed;boundary=${boundary}` });\r",
+							"\r",
+							"// For debugging only\r",
+							"console.log(pm.variables.get('payload'));\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				},
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Check if the status code is in the 2xx range (indicating success)\r",
+							"if (pm.response.code >= 200 && pm.response.code < 300) {\r",
+							"  pm.test('POST request was successful', function () {\r",
+							"    pm.expect(true).to.be.true; // Assertion for passing the test\r",
+							"  });\r",
+							"} else {\r",
+							"  pm.test('POST request failed', function () {\r",
+							"    pm.expect.fail('POST request failed with status code: ' + pm.response.code);\r",
+							"  });\r",
+							"}\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "OData-MaxVersion",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "OData-Version",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Prefer",
+						"value": "return=representation",
+						"type": "text"
+					},
+					{
+						"key": "If-None-Match",
+						"value": "null",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{{payload}}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{webapiurl}}$batch",
+					"host": [
+						"{{webapiurl}}$batch"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Create Bulk Work Queue Items (Static 100 Items)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Check if the status code is in the 2xx range (indicating success)\r",
+							"if (pm.response.code >= 200 && pm.response.code < 300) {\r",
+							"  pm.test('POST request was successful', function () {\r",
+							"    pm.expect(true).to.be.true; // Assertion for passing the test\r",
+							"  });\r",
+							"} else {\r",
+							"  pm.test('POST request failed', function () {\r",
+							"    pm.expect.fail('POST request failed with status code: ' + pm.response.code);\r",
+							"  });\r",
+							"}\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "OData-MaxVersion",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "OData-Version",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Prefer",
+						"value": "return=representation",
+						"type": "text"
+					},
+					{
+						"key": "If-None-Match",
+						"value": "null",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "multipart/mixed;boundary=batch_1692967561012",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-1\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-1\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-2\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-2\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-3\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-3\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-4\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-4\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-5\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-5\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-6\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-6\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-7\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-7\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-8\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-8\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-9\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-9\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-10\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-10\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-11\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-11\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-12\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-12\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-13\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-13\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-14\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-14\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-15\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-15\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-16\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-16\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-17\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-17\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-18\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-18\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-19\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-19\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-20\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-20\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-21\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-21\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-22\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-22\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-23\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-23\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-24\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-24\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-25\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-25\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-26\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-26\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-27\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-27\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-28\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-28\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-29\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-29\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-30\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-30\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-31\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-31\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-32\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-32\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-33\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-33\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-34\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-34\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-35\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-35\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-36\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-36\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-37\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-37\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-38\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-38\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-39\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-39\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-40\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-40\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-41\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-41\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-42\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-42\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-43\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-43\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-44\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-44\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-45\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-45\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-46\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-46\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-47\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-47\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-48\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-48\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-49\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-49\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-50\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-50\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-51\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-51\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-52\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-52\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-53\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-53\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-54\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-54\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-55\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-55\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-56\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-56\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-57\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-57\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-58\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-58\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-59\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-59\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-60\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-60\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-61\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-61\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-62\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-62\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-63\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-63\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-64\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-64\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-65\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-65\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-66\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-66\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-67\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-67\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-68\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-68\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-69\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-69\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-70\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-70\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-71\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-71\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-72\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-72\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-73\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-73\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-74\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-74\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-75\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-75\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-76\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-76\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-77\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-77\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-78\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-78\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-79\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-79\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-80\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-80\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-81\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-81\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-82\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-82\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-83\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-83\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-84\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-84\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-85\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-85\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-86\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-86\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-87\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-87\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-88\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-88\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-89\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-89\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-90\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-90\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-91\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-91\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-92\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-92\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-93\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-93\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-94\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-94\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-95\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-95\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-96\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-96\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-97\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-97\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-98\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-98\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-99\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-99\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-100\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-100\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012\r\nContent-Type: application/http\r\nContent-Transfer-Encoding: binary\r\n\r\nPOST /api/data/v9.2/workqueueitems HTTP/1.1\r\nContent-Type: application/json;type=entry\r\n\r\n{\"workqueueid@odata.bind\":\"/workqueues({{newWorkQueueId}})\",\"name\":\"INV-2023-101\",\"input\":\"{\\\"InvoiceId\\\": \\\"INV-2023-101\\\", \\\"Date\\\": \\\"2023-05-13\\\", \\\"AccountName\\\": \\\"Fabrikam\\\", \\\"ContactEmail\\\": \\\"invoicing@fabrikam.com\\\", \\\"Amount\\\": 3345.87, \\\"Status\\\": \\\"Uninvoiced\\\"}\",\"priority\":100}\r\n\r\n\r\n--batch_1692967561012--\r\n",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{webapiurl}}$batch",
+					"host": [
+						"{{webapiurl}}$batch"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Get Next Work Queue Item ready for processing",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"pm.test(\"Set Work Queue Item Id\", function () {\r",
+							"    var jsonData = pm.response.json();\r",
+							"    pm.collectionVariables.set('nextWorkQueueItemId', jsonData.workqueueitemid);\r",
+							"});"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "OData-MaxVersion",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "OData-Version",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json; charset=utf-8",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{webapiurl}}workqueues({{newWorkQueueId}})/Microsoft.Dynamics.CRM.Dequeue",
+					"host": [
+						"{{webapiurl}}workqueues({{newWorkQueueId}})"
+					],
+					"path": [
+						"Microsoft.Dynamics.CRM.Dequeue"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Work Queue Item (Requeueing)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Check if the status code is in the 2xx range (indicating success)\r",
+							"if (pm.response.code >= 200 && pm.response.code < 300) {\r",
+							"  pm.test('PATCH request was successful', function () {\r",
+							"    pm.expect(true).to.be.true; // Assertion for passing the test\r",
+							"  });\r",
+							"} else {\r",
+							"  pm.test('PATCH request failed', function () {\r",
+							"    pm.expect.fail('PATCH request failed with status code: ' + pm.response.code);\r",
+							"  });\r",
+							"}\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "OData-MaxVersion",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "OData-Version",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json; charset=utf-8",
+						"type": "text"
+					},
+					{
+						"key": "Prefer",
+						"value": "return=representation",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"statecode\": 0,\r\n    \"statuscode\": 0,\r\n    \"priority\": 100,\r\n    \"processingresult\": \"Requeueing item...\",\r\n    \"delayuntil\": \"2023-11-11T06:00:00Z\",\r\n    \"requeuecount\": 1\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{webapiurl}}workqueueitems({{nextWorkQueueItemId}})",
+					"host": [
+						"{{webapiurl}}workqueueitems({{nextWorkQueueItemId}})"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Work Queue Item (Processing)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Check if the status code is in the 2xx range (indicating success)\r",
+							"if (pm.response.code >= 200 && pm.response.code < 300) {\r",
+							"  pm.test('PATCH request was successful', function () {\r",
+							"    pm.expect(true).to.be.true; // Assertion for passing the test\r",
+							"  });\r",
+							"} else {\r",
+							"  pm.test('PATCH request failed', function () {\r",
+							"    pm.expect.fail('PATCH request failed with status code: ' + pm.response.code);\r",
+							"  });\r",
+							"}\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "OData-MaxVersion",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "OData-Version",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json; charset=utf-8",
+						"type": "text"
+					},
+					{
+						"key": "Prefer",
+						"value": "return=representation",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"statecode\": 1,\r\n    \"statuscode\": 1\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{webapiurl}}workqueueitems({{nextWorkQueueItemId}})",
+					"host": [
+						"{{webapiurl}}workqueueitems({{nextWorkQueueItemId}})"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Work Queue Item (Processed)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Check if the status code is in the 2xx range (indicating success)\r",
+							"if (pm.response.code >= 200 && pm.response.code < 300) {\r",
+							"  pm.test('PATCH request was successful', function () {\r",
+							"    pm.expect(true).to.be.true; // Assertion for passing the test\r",
+							"  });\r",
+							"} else {\r",
+							"  pm.test('PATCH request failed', function () {\r",
+							"    pm.expect.fail('PATCH request failed with status code: ' + pm.response.code);\r",
+							"  });\r",
+							"}\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "OData-MaxVersion",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "OData-Version",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json; charset=utf-8",
+						"type": "text"
+					},
+					{
+						"key": "Prefer",
+						"value": "return=representation",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"statecode\": 2,\r\n    \"statuscode\": 2,\r\n    \"processingresult\": \"This item has been processed through API\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{webapiurl}}workqueueitems({{nextWorkQueueItemId}})",
+					"host": [
+						"{{webapiurl}}workqueueitems({{nextWorkQueueItemId}})"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Work Queue Item (Queued)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Check if the status code is in the 2xx range (indicating success)\r",
+							"if (pm.response.code >= 200 && pm.response.code < 300) {\r",
+							"  pm.test('PATCH request was successful', function () {\r",
+							"    pm.expect(true).to.be.true; // Assertion for passing the test\r",
+							"  });\r",
+							"} else {\r",
+							"  pm.test('PATCH request failed', function () {\r",
+							"    pm.expect.fail('PATCH request failed with status code: ' + pm.response.code);\r",
+							"  });\r",
+							"}\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "OData-MaxVersion",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "OData-Version",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json; charset=utf-8",
+						"type": "text"
+					},
+					{
+						"key": "Prefer",
+						"value": "return=representation",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"statecode\": 0,\r\n    \"statuscode\": 0,\r\n    \"processingresult\": \"\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{webapiurl}}workqueueitems({{nextWorkQueueItemId}})",
+					"host": [
+						"{{webapiurl}}workqueueitems({{nextWorkQueueItemId}})"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Work Queue Item (Processing)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Check if the status code is in the 2xx range (indicating success)\r",
+							"if (pm.response.code >= 200 && pm.response.code < 300) {\r",
+							"  pm.test('PATCH request was successful', function () {\r",
+							"    pm.expect(true).to.be.true; // Assertion for passing the test\r",
+							"  });\r",
+							"} else {\r",
+							"  pm.test('PATCH request failed', function () {\r",
+							"    pm.expect.fail('PATCH request failed with status code: ' + pm.response.code);\r",
+							"  });\r",
+							"}\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "OData-MaxVersion",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "OData-Version",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json; charset=utf-8",
+						"type": "text"
+					},
+					{
+						"key": "Prefer",
+						"value": "return=representation",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"statecode\": 1,\r\n    \"statuscode\": 1\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{webapiurl}}workqueueitems({{nextWorkQueueItemId}})",
+					"host": [
+						"{{webapiurl}}workqueueitems({{nextWorkQueueItemId}})"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update Work Queue Item (Business Exception)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Check if the status code is in the 2xx range (indicating success)\r",
+							"if (pm.response.code >= 200 && pm.response.code < 300) {\r",
+							"  pm.test('PATCH request was successful', function () {\r",
+							"    pm.expect(true).to.be.true; // Assertion for passing the test\r",
+							"  });\r",
+							"} else {\r",
+							"  pm.test('PATCH request failed', function () {\r",
+							"    pm.expect.fail('PATCH request failed with status code: ' + pm.response.code);\r",
+							"  });\r",
+							"}\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "PATCH",
+				"header": [
+					{
+						"key": "OData-MaxVersion",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "OData-Version",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json; charset=utf-8",
+						"type": "text"
+					},
+					{
+						"key": "Prefer",
+						"value": "return=representation",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"statecode\": 4,\r\n    \"statuscode\": 6,\r\n    \"priority\": 100,\r\n    \"processingresult\": \"This item has encountered a business exception\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{webapiurl}}workqueueitems({{nextWorkQueueItemId}})",
+					"host": [
+						"{{webapiurl}}workqueueitems({{nextWorkQueueItemId}})"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete Work Queue Item",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Check if the status code is in the 2xx range (indicating success)\r",
+							"if (pm.response.code >= 200 && pm.response.code < 300) {\r",
+							"  pm.test('DELETE Work Queue Item request was successful', function () {\r",
+							"    pm.expect(true).to.be.true; // Assertion for passing the test\r",
+							"  });\r",
+							"} else {\r",
+							"  pm.test('DELETE Work Queue Item request failed', function () {\r",
+							"    pm.expect.fail('DELETE Work Queue Item request failed with status code: ' + pm.response.code);\r",
+							"  });\r",
+							"}\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "OData-MaxVersion",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "OData-Version",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json; charset=utf-8",
+						"type": "text"
+					},
+					{
+						"key": "Prefer",
+						"value": "return=representation",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{webapiurl}}workqueueitems({{nextWorkQueueItemId}})",
+					"host": [
+						"{{webapiurl}}workqueueitems({{nextWorkQueueItemId}})"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Clear Work Queue",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Check if the status code is in the 2xx range (indicating success)\r",
+							"if (pm.response.code >= 200 && pm.response.code < 300) {\r",
+							"  pm.test('POST request was successful', function () {\r",
+							"    pm.expect(true).to.be.true; // Assertion for passing the test\r",
+							"  });\r",
+							"} else {\r",
+							"  pm.test('POST request failed', function () {\r",
+							"    pm.expect.fail('POST request failed with status code: ' + pm.response.code);\r",
+							"  });\r",
+							"}\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "OData-MaxVersion",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "OData-Version",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json; charset=utf-8",
+						"type": "text"
+					},
+					{
+						"key": "Prefer",
+						"value": "return=representation",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{webapiurl}}workqueues({{newWorkQueueId}})/Microsoft.Dynamics.CRM.ClearWorkQueue",
+					"host": [
+						"{{webapiurl}}workqueues({{newWorkQueueId}})"
+					],
+					"path": [
+						"Microsoft.Dynamics.CRM.ClearWorkQueue"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Delete Work Queue",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"// Check if the status code is in the 2xx range (indicating success)\r",
+							"if (pm.response.code >= 200 && pm.response.code < 300) {\r",
+							"  pm.test('DELETE Work Queue request was successful', function () {\r",
+							"    pm.expect(true).to.be.true; // Assertion for passing the test\r",
+							"  });\r",
+							"} else {\r",
+							"  pm.test('DELETE Work Queue request failed', function () {\r",
+							"    pm.expect.fail('DELETE Work Queue request failed with status code: ' + pm.response.code);\r",
+							"  });\r",
+							"}\r",
+							""
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "OData-MaxVersion",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "OData-Version",
+						"value": "4.0",
+						"type": "text"
+					},
+					{
+						"key": "Accept",
+						"value": "application/json",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json; charset=utf-8",
+						"type": "text"
+					},
+					{
+						"key": "Prefer",
+						"value": "return=representation",
+						"type": "text"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{webapiurl}}workqueues({{newWorkQueueId}})",
+					"host": [
+						"{{webapiurl}}workqueues({{newWorkQueueId}})"
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"auth": {
+		"type": "oauth2",
+		"oauth2": [
+			{
+				"key": "redirect_uri",
+				"value": "{{callback}}",
+				"type": "string"
+			},
+			{
+				"key": "authUrl",
+				"value": "{{authurl}}",
+				"type": "string"
+			},
+			{
+				"key": "clientId",
+				"value": "{{clientid}}",
+				"type": "string"
+			},
+			{
+				"key": "refreshRequestParams",
+				"value": [],
+				"type": "any"
+			},
+			{
+				"key": "tokenRequestParams",
+				"value": [],
+				"type": "any"
+			},
+			{
+				"key": "authRequestParams",
+				"value": [],
+				"type": "any"
+			},
+			{
+				"key": "tokenName",
+				"value": "Dataverse Token",
+				"type": "string"
+			},
+			{
+				"key": "challengeAlgorithm",
+				"value": "S256",
+				"type": "string"
+			},
+			{
+				"key": "scope",
+				"value": "user_impersonation",
+				"type": "string"
+			},
+			{
+				"key": "grant_type",
+				"value": "implicit",
+				"type": "string"
+			},
+			{
+				"key": "clientSecret",
+				"value": "2lZ7Q~VCY~ngWbCfVzeE5P1reVcNdcasi0PcC",
+				"type": "string"
+			},
+			{
+				"key": "addTokenTo",
+				"value": "header",
+				"type": "string"
+			},
+			{
+				"key": "client_authentication",
+				"value": "header",
+				"type": "string"
+			},
+			{
+				"key": "accessTokenUrl",
+				"value": "{{authurl}}",
+				"type": "string"
+			}
+		]
+	},
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "environmenturl",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "version",
+			"value": "9.2",
+			"type": "string"
+		},
+		{
+			"key": "webapiurl",
+			"value": "{{environmenturl}}/api/data/v{{version}}/",
+			"type": "string"
+		},
+		{
+			"key": "callback",
+			"value": "https://localhost",
+			"type": "string"
+		},
+		{
+			"key": "authurl",
+			"value": "https://login.microsoftonline.com/common/oauth2/authorize?resource={{url}}",
+			"type": "string"
+		},
+		{
+			"key": "clientid",
+			"value": "51f81489-12ee-4a9e-aaae-a2591f45987d",
+			"type": "string"
+		},
+		{
+			"key": "payload",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "boundary",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "newWorkQueueId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "newWorkQueueItemId",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "nextWorkQueueItemId",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
